@@ -53,4 +53,4 @@ fn main() {
 //                     silently skipping the block. That loudness is the design.
 //
 // What the runtime does and does not ship:
-//   https://nixpt.github.io/crush-language-guide/crush/capabilities.html
+//   https://docs.crushlang.org/crush/capabilities.html
