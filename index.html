@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crush Language & Runtime</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Fira+Code&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="brand">
+                <img src="assets/logo.png" alt="Crush Logo" class="nav-logo">
+                <span class="brand-text">CRUSH</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#status">Status</a></li>
+                <li><a href="#ecosystem">Ecosystem</a></li>
+                <li><a href="https://nixpt.github.io/crush-language-guide/" class="btn-primary">Read the Guide</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content reveal">
+            <span class="alpha-badge">ALPHA · experimental, and honest about it</span>
+            <h1 class="hero-title">A polyglot, <span class="gradient-text">capability-based</span> language</h1>
+            <p class="hero-subtitle">Write Python, JavaScript, and Bash inside one program, and hand code exactly the authority it needs — no more. Compiled to CASM bytecode and run on the CVM1 virtual machine. Early, incomplete, and moving fast.</p>
+            <div class="hero-actions">
+                <a href="https://github.com/nixpt/crush-ast" class="btn-primary">Explore Crush AST</a>
+                <a href="#status" class="btn-secondary">What actually works →</a>
+            </div>
+        </div>
+        <div class="hero-visual reveal delay-1">
+            <img src="assets/hero.png" alt="Crush Banner" class="hero-image">
+        </div>
+    </header>
+
+    <section id="terminal" class="terminal-section reveal">
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+                <span class="terminal-title">example.crush</span>
+            </div>
+            <div class="terminal-body">
+                <pre><code id="typewriter"></code><span class="cursor">_</span></pre>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features-section">
+        <h2 class="section-title reveal">What it <span class="gradient-text">is</span></h2>
+        <div class="grid-container">
+            <div class="feature-card reveal">
+                <div class="card-icon">🌐</div>
+                <h3>Polyglot Embedding</h3>
+                <p>Drop into another language mid-program with <code>@python { }</code> or <code>@javascript { }</code>. Python round-trips real values back into Crush today; JavaScript and Bash execute but don't yet return values.</p>
+            </div>
+            <div class="feature-card reveal delay-1">
+                <div class="card-icon">🔑</div>
+                <h3>Capability-Based</h3>
+                <p>No ambient authority. A program gets <code>io.print</code>, <code>fs.read</code>, <code>net.get</code> only when you grant them — and nothing it wasn't handed. This is the core idea the language is built around.</p>
+            </div>
+            <div class="feature-card reveal delay-2">
+                <div class="card-icon">⚙️</div>
+                <h3>CASM &amp; CVM1</h3>
+                <p>Crush source compiles to CASM bytecode and runs on the CVM1 virtual machine — the same layer <code>crushc</code>, <code>crush-run</code>, and <code>crush-repl</code> are built on.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="status" class="features-section">
+        <h2 class="section-title reveal">Where it's <span class="gradient-text">honestly at</span></h2>
+        <p class="section-subtitle reveal">Crush is alpha. Here's the real state, so you can decide what to try.</p>
+        <div class="grid-container">
+            <div class="feature-card reveal">
+                <div class="card-icon">✅</div>
+                <h3>Works today</h3>
+                <p>The language, compiler, and VM run real programs: functions, structs, ranges (<code>for i in 0..n</code>), the capability system, and <code>@python</code> blocks with full value marshaling. <code>cargo install</code> gets you <code>crushc</code> / <code>crush-run</code> / <code>crush-repl</code>.</p>
+            </div>
+            <div class="feature-card reveal delay-1">
+                <div class="card-icon">🚧</div>
+                <h3>Rough edges</h3>
+                <p>JavaScript and Bash blocks run but can't return values yet. There's no single <code>crush</code> umbrella command. The standard library is small. Multiple execution backends still have corners that disagree — we're building a differential harness to hunt those down.</p>
+            </div>
+            <div class="feature-card reveal delay-2">
+                <div class="card-icon">⚠️</div>
+                <h3>Known limitation</h3>
+                <p>A polyglot block currently runs with the host process's full authority — it steps <em>outside</em> the capability sandbox. Don't run untrusted Crush yet. Bringing polyglot under the capability model is on the roadmap, and we'd rather say so than surprise you.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="ecosystem" class="ecosystem-section">
+        <h2 class="section-title reveal">The Crush <span class="gradient-text">Ecosystem</span></h2>
+        <div class="grid-container">
+            <a href="https://github.com/nixpt/crush-ast" class="eco-card reveal">
+                <img src="assets/logo.png" alt="Crush AST" class="eco-icon">
+                <div class="eco-content">
+                    <h3>crush-ast</h3>
+                    <p>The core: compiler frontend, the CVM1 runtime, the CASM assembler, and the language-frontend crates.</p>
+                </div>
+            </a>
+            <a href="https://github.com/nixpt/crush-language-guide" class="eco-card reveal delay-1">
+                <div class="eco-icon">📚</div>
+                <div class="eco-content">
+                    <h3>Crush Language Guide</h3>
+                    <p>The comprehensive technical manual, CAST/CASM specs, and polyglot guides.</p>
+                </div>
+            </a>
+            <a href="https://github.com/nixpt/exosphere" class="eco-card reveal delay-2">
+                <div class="eco-icon">🌌</div>
+                <div class="eco-content">
+                    <h3>Exosphere</h3>
+                    <p>The agent-native OS utilizing Crush as its foundational capability-driven scripting layer.</p>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <img src="assets/logo.png" alt="Logo" class="footer-logo">
+                <span>Crush Language</span>
+            </div>
+            <p>&copy; 2026 The Crush Authors. Dual-licensed under MIT and Apache 2.0.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
