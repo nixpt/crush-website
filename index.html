@@ -70,8 +70,8 @@
             </div>
             <div class="feature-card reveal delay-2">
                 <div class="card-icon">⚙️</div>
-                <h3>CASM &amp; CVM1</h3>
-                <p>Crush source compiles to CASM bytecode and runs on the CVM1 virtual machine — the same layer <code>crushc</code>, <code>crush-run</code>, and <code>crush-repl</code> are built on.</p>
+                <h3>CASM, CVM1 &amp; WASM</h3>
+                <p>Crush compiles to CASM bytecode and runs on the CVM1 virtual machine. In the LiteVM stack it plugs into (<code>exo-light</code>), the same capability set also drives a fuel-metered WebAssembly sandbox — CVM1 and WASM capsules side by side, one enforcement model.</p>
             </div>
         </div>
     </section>
@@ -93,7 +93,7 @@
             <div class="feature-card reveal delay-2">
                 <div class="card-icon">⚠️</div>
                 <h3>Known limitation</h3>
-                <p>A polyglot block currently runs with the host process's full authority — it steps <em>outside</em> the capability sandbox. Don't run untrusted Crush yet. Bringing polyglot under the capability model is on the roadmap, and we'd rather say so than surprise you.</p>
+                <p>A polyglot block currently runs with the host process's full authority — it steps <em>outside</em> the capability sandbox. Don't run untrusted Crush yet. The enforcement machinery already exists (the LiteVM stack gates crush's host capabilities today); routing polyglot spawns through it is the fix, and it's on the roadmap. We'd rather say so than surprise you.</p>
             </div>
         </div>
     </section>
