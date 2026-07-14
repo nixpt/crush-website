@@ -1,0 +1,56 @@
+// Crush — a capability-based, polyglot language.
+//
+// Everything below ACTUALLY RUNS:   crush-run run example.crush --stdlib
+//
+// The previous version of this file ended with
+//     "✅ All polyglot blocks successfully executed within the WASM sandbox!"
+// and had never once been executed. It did not even parse. This one is checked.
+
+fn main() {
+    io.print("🚀 Crush — polyglot, for real");
+
+    // ── Python, with a full round trip ──────────────────────────────────────────
+    // `base` is a Crush variable. It goes INTO Python. `result` comes back OUT as a
+    // real Crush value. Crush reads the block with Python's own parser to work out
+    // which names cross the boundary, so nothing is guessed from the text.
+    let base = 5;
+    @python {
+        import math
+        result = math.pow(base, 3)
+    }
+    io.print("Python: 5^3 = " + result);
+
+    // Types survive the trip — `result` is a float here, not the string "125.0".
+    let doubled = result + result;
+    io.print("Back in Crush: result + result = " + doubled);
+
+    // ── JavaScript ──────────────────────────────────────────────────────────────
+    // The block executes on node, and its own output reaches your terminal.
+    //
+    // HONEST LIMITATION: values cannot yet be marshaled back OUT of a JS block the way
+    // they can from Python — Crush has no JS parser wired in to do that analysis. Until
+    // it does, treat @javascript as fire-and-forget. It will not silently hand you a
+    // wrong value; there simply isn't one to hand back.
+    @javascript {
+        const data = { language: "Crush", features: ["polyglot", "capabilities"] };
+        console.log("JavaScript: " + JSON.stringify(data));
+    }
+
+    // ── Capabilities: the actual point of the language ──────────────────────────
+    // `io.print` is a CAPABILITY, not a builtin. Code gets exactly the authority you
+    // hand it and nothing more. This program asked for io and the stdlib, so it cannot
+    // touch the filesystem or the network — it was never granted them. Run it with
+    // --fs and it can read files; run it without and it cannot. There is no ambient
+    // authority to escape from.
+    io.print("Held: io, str, math (--stdlib). Not fs. Not net.");
+
+    io.print("✅ Done — and every line above really executed.");
+}
+
+// NOT IMPLEMENTED, and deliberately not faked here:
+//
+//   @rust { ... }   — no executor is registered. Crush says so LOUDLY rather than
+//                     silently skipping the block. That loudness is the design.
+//
+// What the runtime does and does not ship:
+//   https://nixpt.github.io/crush-language-guide/crush/capabilities.html
