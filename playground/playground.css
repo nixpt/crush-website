@@ -201,3 +201,7 @@ footer .build { color: var(--text-muted); font-size: 0.85rem; }
 .verdict.allowed { border-color: rgba(74, 222, 128, 0.45); background: rgba(74, 222, 128, 0.07); }
 .verdict.allowed strong { color: #bbf7d0; }
 .after[hidden] { display: none; }
+
+.input-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem; border-top: 1px solid var(--border-card); }
+.input-row[hidden] { display: none; }
+.input-row input { flex: 1; min-width: 8rem; font: 0.9rem 'Fira Code', monospace; color: var(--text-main); background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-card); border-radius: 8px; padding: 0.45rem 0.6rem; }

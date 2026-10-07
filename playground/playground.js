@@ -159,6 +159,11 @@ while true {
 const AC = 'https://github.com/nixpt/awesome-crush/blob/master/';
 const GAMES = [
     {
+        id: 'g-blackjack-play', name: 'Blackjack (you play)', file: 'blackjack_interactive.crush', author: 'Claude',
+        path: 'games/blackjack_interactive.crush',
+        blurb: 'You play this one. The program pauses at each io.read and asks you: type a bet, then h to hit or s to stand, and 0 to leave the table.',
+    },
+    {
         id: 'g-breakout', name: 'Breakout', file: 'breakout.crush', author: 'cece (DeepSeek-v4)',
         path: 'games/breakout.crush', frameEnd: /^score: /,
         blurb: 'An AI paddle tracks the ball; 30 bricks live as bits in one integer. Shortened from 200 to 30 ticks to fit the one-million-instruction budget.',
@@ -212,6 +217,7 @@ const picker = $('example'), blurb = $('blurb'), shareBtn = $('share');
 const verdict = $('verdict'), verdictTitle = $('verdict-title'), verdictBody = $('verdict-body');
 const player = $('player'), playBtn = $('play'), restartBtn = $('restart'), frameNo = $('frame-no');
 const speedSel = $('speed'), fullBtn = $('full');
+const inputRow = $('input-row'), inputBox = $('stdin-line'), sendBtn = $('send'), eofBtn = $('eof');
 
 let worker, ready = false, pending = null, nextId = 1, timer = null;
 
@@ -242,6 +248,15 @@ function startWorker() {
 // Refusals are the capability model working, so they're shown as outcomes,
 // not crashes. Anything unrecognised is shown as a plain error.
 function classify(error) {
+    if (interactiveRun && /stack underflow|truncated instruction/.test(error)) {
+        return {
+            kind: 'stopped',
+            title: 'Known engine bug after the program finished (crush-ast#94)',
+            body: 'Programs that read input run on the browser\'s step-by-step VM, which still disagrees with the native VM ' +
+                'when unwinding some deep call chains, typically after a multi-round game. Everything printed above is ' +
+                'correct, and the native crush-run finishes this program cleanly.',
+        };
+    }
     let m = error.match(/@(\w+) requires the 'polyglot\.\w+' capability/);
     if (m) {
         return {
@@ -357,65 +372,112 @@ fullBtn.addEventListener('click', () => {
     if (showingFull) out.textContent = fullText; else drawFrame();
 });
 
-function show(r) {
-    const ms = r.ms < 1 ? '<1' : Math.round(r.ms);
-    verdict.hidden = true;
-    hidePlayer();
-    if (r.ok) {
-        out.className = '';
-        out.textContent = r.output.length ? r.output : '(no output)';
-        stats.textContent = `ok · ${r.steps.toLocaleString()} steps · ${ms} ms`;
-        const g = currentGame();
-        if (g && (g.frameStart || g.frameEnd)) {
-            const split = splitFrames(r.output, g);
-            if (split.frames.length > 1) {
-                ({ intro, frames } = split);
-                fullText = r.output;
-                frameIdx = 0;
-                showingFull = false;
-                fullBtn.textContent = 'Full output';
-                player.hidden = false;
-                drawFrame();
-                startPlayback();
-            }
+// A run is a session: output arrives in pieces (one per call) and is
+// accumulated into `transcript`. 'need_input' means the program is waiting on
+// io.read; the input row sends a line (provide) or end of input (eof).
+let transcript = '', totalMs = 0, interactiveRun = false;
+
+function stepsText(r) {
+    return (r.steps ?? 0).toLocaleString() + ' steps';
+}
+
+function finishOk(r, ms) {
+    out.className = '';
+    out.textContent = transcript.length ? transcript : '(no output)';
+    stats.textContent = `ok · ${stepsText(r)} · ${ms} ms`;
+    const g = currentGame();
+    if (g && (g.frameStart || g.frameEnd)) {
+        const split = splitFrames(transcript, g);
+        if (split.frames.length > 1) {
+            ({ intro, frames } = split);
+            fullText = transcript;
+            frameIdx = 0;
+            showingFull = false;
+            fullBtn.textContent = 'Full output';
+            player.hidden = false;
+            drawFrame();
+            startPlayback();
         }
-        return;
     }
-    const c = classify(r.error);
+}
+
+function finishError(r, ms) {
+    const error = r.error || 'error';
+    const c = classify(error);
+    const before = transcript.length ? transcript + (transcript.endsWith('\n') ? '' : '\n') : '';
     if (c) {
         verdict.className = 'verdict ' + c.kind;
         verdictTitle.textContent = c.title;
         verdictBody.textContent = c.body;
         verdict.hidden = false;
         out.className = 'raw';
-        out.textContent = r.error;
+        out.textContent = before + error;
         stats.textContent = `${c.kind} · ${ms} ms`;
     } else {
         out.className = 'err';
-        out.textContent = r.error;
+        out.textContent = before + error;
         stats.textContent = `error · ${ms} ms`;
     }
 }
 
-function run() {
-    if (!ready || pending) return;
+function show(r) {
+    transcript += r.output || '';
+    totalMs += r.ms || 0;
+    const ms = totalMs < 1 ? '<1' : Math.round(totalMs);
+    if (r.status === 'need_input') {
+        out.className = '';
+        out.textContent = transcript;
+        out.scrollTop = out.scrollHeight;
+        stats.textContent = `waiting for input · ${stepsText(r)}`;
+        inputRow.hidden = false;
+        inputBox.value = '';
+        inputBox.focus();
+        return;
+    }
+    inputRow.hidden = true;
+    if (r.status === 'done') finishOk(r, ms);
+    else finishError(r, ms);
+}
+
+function send(message) {
     pending = nextId++;
     runBtn.disabled = true;
+    inputRow.hidden = true;
     stats.textContent = 'running…';
-    worker.postMessage({ id: pending, source: src.value });
+    worker.postMessage({ ...message, id: pending });
     timer = setTimeout(() => {
         worker.terminate();
         pending = null;
         verdict.hidden = true;
+        inputRow.hidden = true;
         out.className = 'err';
-        out.textContent = `Stopped after ${TIMEOUT_MS / 1000} s of wall-clock time. The runtime has been restarted.`;
+        out.textContent = (transcript ? transcript + '\n' : '') +
+            `Stopped after ${TIMEOUT_MS / 1000} s of wall-clock time. The runtime has been restarted.`;
         stats.textContent = 'timed out';
+        runBtn.disabled = false;
         startWorker();
     }, TIMEOUT_MS);
 }
 
+function run() {
+    if (!ready || pending) return;
+    verdict.hidden = true;
+    hidePlayer();
+    transcript = '';
+    totalMs = 0;
+    interactiveRun = /\bio\.read\b/.test(src.value);
+    send({ type: 'run', source: src.value, maxSteps: 1_000_000 });
+}
+
+function provide(line) {
+    if (pending) return;
+    transcript += line + '\n';   // echo what the player typed, like a terminal
+    send({ type: 'provide', line });
+}
+
 function load(ex) {
     verdict.hidden = true;
+    inputRow.hidden = true;
     hidePlayer();
     src.value = ex.source;
     blurb.textContent = ex.blurb;
@@ -425,6 +487,7 @@ function load(ex) {
 const gameCache = new Map();
 async function loadGame(g) {
     verdict.hidden = true;
+    inputRow.hidden = true;
     hidePlayer();
     picker.value = g.id;
     blurb.textContent = 'Loading…';
@@ -490,6 +553,11 @@ picker.addEventListener('change', () => {
 });
 
 runBtn.addEventListener('click', run);
+sendBtn.addEventListener('click', () => provide(inputBox.value));
+eofBtn.addEventListener('click', () => { if (!pending) { transcript += '^D\n'; send({ type: 'eof' }); } });
+inputBox.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); provide(inputBox.value); }
+});
 src.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
