@@ -38,7 +38,7 @@
         <section class="pg-grid">
             <div class="pane editor-pane">
                 <div class="pane-bar">
-                    <label for="example" class="pane-title">Example</label>
+                    <label for="example" class="pane-title">Program</label>
                     <select id="example"></select>
                     <span class="spacer"></span>
                     <button id="share" class="tool" type="button" title="Copy a link to this program">Share</button>
@@ -56,6 +56,19 @@
                 <div id="verdict" class="verdict" hidden>
                     <strong id="verdict-title"></strong>
                     <p id="verdict-body"></p>
+                </div>
+                <div id="player" class="player" hidden>
+                    <button id="play" class="tool" type="button">Pause</button>
+                    <button id="restart" class="tool" type="button">Restart</button>
+                    <label for="speed" class="pane-title">Speed</label>
+                    <select id="speed">
+                        <option value="400">Slow</option>
+                        <option value="160" selected>Normal</option>
+                        <option value="60">Fast</option>
+                    </select>
+                    <span id="frame-no" class="stats"></span>
+                    <span class="spacer"></span>
+                    <button id="full" class="tool" type="button">Full output</button>
                 </div>
                 <pre id="out" aria-live="polite"></pre>
             </div>
