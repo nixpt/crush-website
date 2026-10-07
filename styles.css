@@ -356,3 +356,7 @@ footer {
     opacity: 0.7;
     font-size: 1.1rem;
 }
+
+/* The background blobs are absolutely positioned past the right edge, and body's
+   overflow-x: hidden alone didn't stop the page scrolling sideways (51px on phones). */
+html { overflow-x: hidden; }

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Try Crush — Playground</title>
+    <meta name="description" content="Run Crush programs in your browser. The real Crush compiler and VM, compiled to WebAssembly.">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="playground.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Fira+Code&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="../" class="brand">
+                <img src="../assets/logo.png" alt="Crush Logo" class="nav-logo">
+                <span class="brand-text">CRUSH</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="../#features">Features</a></li>
+                <li><a href="../#status">Status</a></li>
+                <li><a href="./" aria-current="page">Playground</a></li>
+                <li><a href="https://docs.crushlang.org/" class="btn-primary">Read the Guide</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="pg">
+        <header class="pg-head">
+            <span class="badge">ALPHA · runs entirely in your browser</span>
+            <h1>Try <span class="gradient-text">Crush</span></h1>
+            <p>This is the real Crush compiler and VM, compiled to WebAssembly. Nothing is sent to a server. Programs here hold no capabilities beyond printing: no files, no network, no polyglot blocks. Asking for one is refused, which is the point of the language.</p>
+        </header>
+
+        <section class="pg-grid">
+            <div class="pane editor-pane">
+                <div class="pane-bar">
+                    <label for="example" class="pane-title">Example</label>
+                    <select id="example"></select>
+                    <span class="spacer"></span>
+                    <button id="share" class="tool" type="button" title="Copy a link to this program">Share</button>
+                    <button id="run" class="btn-primary run" type="button" title="Run (Ctrl+Enter)">Run ▶</button>
+                </div>
+                <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Crush source code"></textarea>
+                <p class="hint" id="blurb"></p>
+            </div>
+            <div class="pane output-pane">
+                <div class="pane-bar">
+                    <span class="pane-title">Output</span>
+                    <span class="spacer"></span>
+                    <span id="stats" class="stats" aria-live="polite">loading runtime…</span>
+                </div>
+                <pre id="out" aria-live="polite"></pre>
+            </div>
+        </section>
+
+        <section class="pg-notes">
+            <div class="note-card">
+                <h3>What runs here</h3>
+                <p>Crush source is parsed, compiled to CASM bytecode and executed on the portable CVM interpreter, the same pipeline <code>crush-run</code> uses natively. Each run starts fresh and is capped at one million VM instructions.</p>
+            </div>
+            <div class="note-card">
+                <h3>What doesn't, yet</h3>
+                <p>Polyglot blocks (<code>@python</code>, <code>@javascript</code>, <code>@bash</code>) need a host process, so the browser refuses them. Capabilities such as <code>fs</code> and <code>net</code> are not granted. Green threads (<code>spawn</code>) don't compile in the browser build yet.</p>
+            </div>
+            <div class="note-card">
+                <h3>Run it natively</h3>
+                <p>The toolchain is open source at <a href="https://github.com/nixpt/crush-ast">nixpt/crush-ast</a>. The language guide lives at <a href="https://docs.crushlang.org/">docs.crushlang.org</a>.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <img src="../assets/logo.png" alt="Logo" class="footer-logo">
+                <span>Crush Language</span>
+            </div>
+            <p>&copy; 2026 The Crush Authors. Dual-licensed under MIT and Apache 2.0.</p>
+            <p class="build" id="build">Runtime: crush-web from crush-ast <code>4e9c388</code></p>
+        </div>
+    </footer>
+
+    <script type="module" src="playground.js"></script>
+</body>
+</html>
