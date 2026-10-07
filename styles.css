@@ -357,6 +357,9 @@ footer {
     font-size: 1.1rem;
 }
 
-/* The background blobs are absolutely positioned past the right edge, and body's
-   overflow-x: hidden alone didn't stop the page scrolling sideways (51px on phones). */
+/* The background blobs float past the right edge. As absolutely positioned
+   elements they widened the page (51px sideways scroll on phones, even with
+   overflow-x: hidden on html and body). Fixed elements sit against the
+   viewport and never add to the page's scrollable width. */
+.blob { position: fixed; }
 html { overflow-x: hidden; }

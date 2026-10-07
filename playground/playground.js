@@ -152,11 +152,66 @@ while true {
     },
 ];
 
+// Programs from awesome-crush (github.com/nixpt/awesome-crush @ e955df3): each one
+// written by a different LLM that was pointed at crush-ast and asked "can you
+// learn crush?". Sources live in ./games/ and load when picked. `frameStart` /
+// `frameEnd` split the output into frames for playback.
+const AC = 'https://github.com/nixpt/awesome-crush/blob/master/';
+const GAMES = [
+    {
+        id: 'g-breakout', name: 'Breakout', file: 'breakout.crush', author: 'cece (DeepSeek-v4)',
+        path: 'games/breakout.crush', frameEnd: /^score: /,
+        blurb: 'An AI paddle tracks the ball; 30 bricks live as bits in one integer. Shortened from 200 to 30 ticks to fit the one-million-instruction budget.',
+    },
+    {
+        id: 'g-pong', name: 'Pong', file: 'pong-deepseek.crush', author: 'cece / bro (DeepSeek-v4)',
+        path: 'games/pong-deepseek.crush', frameStart: /^score {2}left /,
+        blurb: 'Two self-playing paddles with an LCG-driven hesitation model. Shortened from 120 to 80 ticks to fit the instruction budget.',
+    },
+    {
+        id: 'g-tictactoe', name: 'Tic-tac-toe', file: 'tictactoe.crush', author: 'foreman-v2 (Qwen3.8-27B fine-tune)',
+        path: 'games/tictactoe.crush', frameStart: /^move \d+:/,
+        blurb: 'Two strategies play each other. The whole board is one base-3 integer.',
+    },
+    {
+        id: 'g-fifteen', name: 'Fifteen puzzle (IDA*)', file: 'fifteen_puzzle.crush', author: 'bro (DeepSeek-v4)',
+        path: 'games/fifteen_puzzle.crush',
+        blurb: 'Scrambles a 4x4 sliding puzzle, then solves it optimally with iterative-deepening A*. 15 tiles packed into one 64-bit integer.',
+    },
+    {
+        id: 'g-lights', name: 'Lights Out', file: 'lights_out.crush', author: 'qwen38-base (Qwen3.8-27B)',
+        path: 'games/lights_out.crush',
+        blurb: 'Scrambles a 5x5 board and solves it by light chasing over 32 first-row masks. The board is a 25-bit bitfield.',
+    },
+    {
+        id: 'g-blackjack', name: 'Blackjack', file: 'blackjack.crush', author: 'OpenCode',
+        path: 'games/blackjack.crush',
+        blurb: 'A deterministic 52-card shuffle, soft-ace scoring and a bankroll across six rounds.',
+    },
+    {
+        id: 'g-rps', name: 'Rock-paper-scissors tournament', file: 'rps_tournament.crush', author: 'bro (Muse)',
+        path: 'games/rps_tournament.crush',
+        blurb: 'Three bots (always-rock, a cycler and a copycat) play a round-robin, then an ASCII standings chart crowns the champion.',
+    },
+    {
+        id: 'g-brainfuck', name: 'Brainfuck interpreter', file: 'brainfuck.crush', author: 'buffy (DeepSeek-v4)',
+        path: 'brainfuck/brainfuck.crush',
+        blurb: 'A second language hosted inside Crush: a Brainfuck interpreter with a tape, a pointer and bracket matching, running a few Brainfuck programs.',
+    },
+    {
+        id: 'g-forth', name: 'Forth interpreter', file: 'forth.crush', author: 'buffy (DeepSeek-v4)',
+        path: 'forth/forth.crush',
+        blurb: 'A small but real Forth interpreter in Crush: arithmetic, stack words, if/else/then and do/loop.',
+    },
+];
+
 const TIMEOUT_MS = 8000;
 const $ = (id) => document.getElementById(id);
 const src = $('src'), out = $('out'), stats = $('stats'), runBtn = $('run');
 const picker = $('example'), blurb = $('blurb'), shareBtn = $('share');
 const verdict = $('verdict'), verdictTitle = $('verdict-title'), verdictBody = $('verdict-body');
+const player = $('player'), playBtn = $('play'), restartBtn = $('restart'), frameNo = $('frame-no');
+const speedSel = $('speed'), fullBtn = $('full');
 
 let worker, ready = false, pending = null, nextId = 1, timer = null;
 
@@ -217,13 +272,113 @@ function classify(error) {
     return null;
 }
 
+
+// ── Frame playback for animated programs ──────────────────────────────────
+let frames = [], intro = '', fullText = '', frameIdx = 0, playTimer = null, showingFull = false;
+
+function currentGame() {
+    return GAMES.find((g) => g.id === picker.value) || null;
+}
+
+function splitFrames(text, g) {
+    const lines = text.split('\n');
+    const out = [];
+    let head = [], cur = null;
+    for (const line of lines) {
+        if (g.frameStart && g.frameStart.test(line)) {
+            if (cur) out.push(cur.join('\n'));
+            cur = [line];
+        } else if (g.frameEnd) {
+            (cur ||= []).push(line);
+            if (g.frameEnd.test(line)) { out.push(cur.join('\n')); cur = null; }
+        } else if (cur) {
+            cur.push(line);
+        } else {
+            head.push(line);
+        }
+    }
+    if (cur && cur.join('').trim()) {
+        if (out.length && g.frameEnd) out[out.length - 1] += '\n' + cur.join('\n');
+        else out.push(cur.join('\n'));
+    }
+    if (g.frameEnd && out.length) {
+        // The first frame carries the title lines; peel them off as the intro.
+        const first = out[0].split('\n');
+        const border = first.findIndex((l) => /^\|-+\|$/.test(l));
+        if (border > 0) { head = first.slice(0, border); out[0] = first.slice(border).join('\n'); }
+    }
+    return { intro: head.join('\n').replace(/\n+$/, ''), frames: out };
+}
+
+function stopPlayback() {
+    clearInterval(playTimer);
+    playTimer = null;
+    playBtn.textContent = 'Play';
+}
+
+function drawFrame() {
+    out.textContent = (intro ? intro + '\n\n' : '') + frames[frameIdx];
+    frameNo.textContent = `frame ${frameIdx + 1} / ${frames.length}`;
+}
+
+function startPlayback() {
+    stopPlayback();
+    if (frameIdx >= frames.length - 1) frameIdx = 0;
+    playBtn.textContent = 'Pause';
+    playTimer = setInterval(() => {
+        if (frameIdx >= frames.length - 1) { stopPlayback(); return; }
+        frameIdx++;
+        drawFrame();
+    }, Number(speedSel.value));
+}
+
+function hidePlayer() {
+    stopPlayback();
+    player.hidden = true;
+    frames = [];
+}
+
+playBtn.addEventListener('click', () => {
+    if (showingFull) { showingFull = false; fullBtn.textContent = 'Full output'; }
+    playTimer ? stopPlayback() : startPlayback();
+});
+restartBtn.addEventListener('click', () => {
+    showingFull = false;
+    fullBtn.textContent = 'Full output';
+    frameIdx = 0;
+    drawFrame();
+    startPlayback();
+});
+speedSel.addEventListener('change', () => { if (playTimer) startPlayback(); });
+fullBtn.addEventListener('click', () => {
+    stopPlayback();
+    showingFull = !showingFull;
+    fullBtn.textContent = showingFull ? 'Frames' : 'Full output';
+    if (showingFull) out.textContent = fullText; else drawFrame();
+});
+
 function show(r) {
     const ms = r.ms < 1 ? '<1' : Math.round(r.ms);
     verdict.hidden = true;
+    hidePlayer();
     if (r.ok) {
         out.className = '';
         out.textContent = r.output.length ? r.output : '(no output)';
         stats.textContent = `ok · ${r.steps.toLocaleString()} steps · ${ms} ms`;
+        const g = currentGame();
+        if (g && (g.frameStart || g.frameEnd)) {
+            const split = splitFrames(r.output, g);
+            if (split.frames.length > 1) {
+                ({ intro, frames } = split);
+                fullText = r.output;
+                frameIdx = 0;
+                showingFull = false;
+                fullBtn.textContent = 'Full output';
+                player.hidden = false;
+                drawFrame();
+                startPlayback();
+            }
+        }
         return;
     }
     const c = classify(r.error);
@@ -261,9 +416,40 @@ function run() {
 
 function load(ex) {
     verdict.hidden = true;
+    hidePlayer();
     src.value = ex.source;
     blurb.textContent = ex.blurb;
     picker.value = ex.id;
+}
+
+const gameCache = new Map();
+async function loadGame(g) {
+    verdict.hidden = true;
+    hidePlayer();
+    picker.value = g.id;
+    blurb.textContent = 'Loading…';
+    try {
+        if (!gameCache.has(g.id)) {
+            const res = await fetch('games/' + g.file);
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            gameCache.set(g.id, await res.text());
+        }
+        if (picker.value !== g.id) return;
+        src.value = gameCache.get(g.id);
+        blurb.textContent = '';
+        blurb.append(g.blurb + ' Written by ' + g.author + '. ');
+        const a = document.createElement('a');
+        a.href = AC + g.path;
+        a.textContent = 'Source on awesome-crush';
+        a.target = '_blank';
+        a.rel = 'noopener';
+        blurb.append(a);
+        out.className = '';
+        out.textContent = 'Press Run to play.';
+        stats.textContent = ready ? 'ready' : stats.textContent;
+    } catch (err) {
+        blurb.textContent = 'Could not load this game: ' + err.message;
+    }
 }
 
 // Share links carry the program in the URL fragment: #code=<base64url>.
@@ -290,8 +476,18 @@ shareBtn.addEventListener('click', async () => {
     setTimeout(() => (shareBtn.textContent = 'Share'), 2000);
 });
 
-for (const ex of EXAMPLES) picker.add(new Option(ex.name, ex.id));
-picker.addEventListener('change', () => load(EXAMPLES.find((e) => e.id === picker.value)));
+const tour = document.createElement('optgroup');
+tour.label = 'Language tour';
+for (const ex of EXAMPLES) tour.append(new Option(ex.name, ex.id));
+const gamesGroup = document.createElement('optgroup');
+gamesGroup.label = 'Games written by LLMs';
+for (const g of GAMES) gamesGroup.append(new Option(g.name, g.id));
+picker.append(tour, gamesGroup);
+picker.addEventListener('change', () => {
+    const g = currentGame();
+    if (g) loadGame(g);
+    else load(EXAMPLES.find((e) => e.id === picker.value));
+});
 
 runBtn.addEventListener('click', run);
 src.addEventListener('keydown', (e) => {
@@ -305,7 +501,10 @@ src.addEventListener('keydown', (e) => {
 });
 
 const shared = location.hash.startsWith('#code=') ? location.hash.slice(6) : null;
-if (shared) {
+const linkedGame = GAMES.find((g) => location.hash === '#' + g.id);
+if (linkedGame) {
+    loadGame(linkedGame);
+} else if (shared) {
     try {
         src.value = decode(shared);
         blurb.textContent = 'A shared program.';

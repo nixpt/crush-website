@@ -157,3 +157,14 @@ footer .build { color: var(--text-muted); font-size: 0.85rem; }
 .verdict.stopped strong { color: #bfdbfe; }
 #out.raw { color: var(--text-muted); font-size: 0.82rem; }
 .verdict[hidden] { display: none; }
+
+.player {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-card);
+}
+.player[hidden] { display: none; }
+.hint a { color: #c4b5fd; }
