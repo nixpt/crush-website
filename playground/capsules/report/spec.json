@@ -1,0 +1,4 @@
+{
+  "id": "report",
+  "capabilities": ["io.file.read:/data/in", "io.file.write:/data/out"]
+}

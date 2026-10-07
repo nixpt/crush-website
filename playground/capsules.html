@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crush Capsules — Playground</title>
+    <meta name="description" content="Run Crush capsules in your browser. A capsule asks for capabilities, you grant a subset, and nothing else is reachable.">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="playground.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Fira+Code&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="../" class="brand">
+                <img src="../assets/logo.png" alt="Crush Logo" class="nav-logo">
+                <span class="brand-text">CRUSH</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="../#features">Features</a></li>
+                <li><a href="../#status">Status</a></li>
+                <li><a href="./" aria-current="page">Playground</a></li>
+                <li><a href="https://docs.crushlang.org/" class="btn-primary">Read the Guide</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="pg">
+        <header class="pg-head">
+            <nav class="mode-tabs" aria-label="Playground mode">
+                <a href="./">Programs</a>
+                <a href="capsules.html" aria-current="page">Capsules</a>
+            </nav>
+            <span class="badge">ALPHA · runs entirely in your browser</span>
+            <h1>Crush <span class="gradient-text">Capsules</span></h1>
+            <p>A capsule is a compiled Crush program that says which capabilities it needs, down to the directory. You decide which of those to grant. Only what you grant is reachable, and only inside its scope. The files below are an in-memory filesystem; nothing leaves your browser.</p>
+        </header>
+
+        <section class="pg-grid">
+            <div class="pane">
+                <div class="pane-bar">
+                    <label for="sample" class="pane-title">Capsule</label>
+                    <select id="sample">
+                        <option value="wordcount">Word count</option>
+                        <option value="report">Report writer</option>
+                        <option value="passwd">Escape attempt</option>
+                    </select>
+                    <span class="spacer"></span>
+                    <button id="run" class="btn-primary run" type="button" disabled>Run ▶</button>
+                </div>
+                <div class="cap-body">
+                    <p class="hint plain" id="about"></p>
+
+                    <h3 class="cap-h">It asks for</h3>
+                    <div id="requests" class="grants"></div>
+
+                    <div class="extra">
+                        <label for="extra-grant">Grant something it didn't ask for</label>
+                        <div class="extra-row">
+                            <input id="extra-grant" type="text" spellcheck="false" placeholder="e.g. io.file.read:/etc">
+                        </div>
+                    </div>
+
+                    <div class="presets" id="presets"></div>
+
+                    <h3 class="cap-h">Files <span class="muted">(in-memory)</span></h3>
+                    <div id="files" class="files"></div>
+
+                    <details class="source">
+                        <summary>Capsule source (CASM)</summary>
+                        <pre id="source"></pre>
+                    </details>
+                </div>
+            </div>
+
+            <div class="pane output-pane">
+                <div class="pane-bar">
+                    <span class="pane-title">Result</span>
+                    <span class="spacer"></span>
+                    <span id="stats" class="stats" aria-live="polite">loading runtime…</span>
+                </div>
+                <div id="verdict" class="verdict" hidden>
+                    <strong id="verdict-title"></strong>
+                    <p id="verdict-body"></p>
+                </div>
+                <pre id="out" aria-live="polite">Pick what to grant, then press Run.</pre>
+                <div class="after" id="after" hidden>
+                    <h3 class="cap-h">Files after the run</h3>
+                    <div id="after-files"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="pg-notes">
+            <div class="note-card">
+                <h3>One enforcement path</h3>
+                <p>This runs <a href="https://github.com/nixpt/exo-light">exo-light</a>'s own capsule runner, compiled to WebAssembly. Grants become the same capability set exo-light enforces natively; only the filesystem behind it is in memory here.</p>
+            </div>
+            <div class="note-card">
+                <h3>Narrow, never widen</h3>
+                <p>You can grant less than a capsule asks for. Granting more is refused before it runs. A granted directory is a boundary: paths that escape it are refused even if the file exists.</p>
+            </div>
+            <div class="note-card">
+                <h3>Why CASM?</h3>
+                <p>These capsules are written in CASM, Crush's assembly. Crush source can't yet name a directory-scoped capability like <code>io.file.read:/data/in</code>; that's on the roadmap.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <img src="../assets/logo.png" alt="Logo" class="footer-logo">
+                <span>Crush Language</span>
+            </div>
+            <p>&copy; 2026 The Crush Authors. Dual-licensed under MIT and Apache 2.0.</p>
+            <p class="build">Runtime: exo-light-web from exo-light <code>b890dc3</code></p>
+        </div>
+    </footer>
+
+    <script type="module" src="capsules.js"></script>
+</body>
+</html>
