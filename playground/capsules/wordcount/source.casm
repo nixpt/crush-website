@@ -1,0 +1,52 @@
+; wordcount: count the words in /data/in/notes.txt.
+; Requests io.file.read:/data/in. Grant it and the count prints; withhold it
+; and the read has no host handler ("unknown capability").
+PUSH_STR "reading /data/in/notes.txt"
+CAP_CALL "io.print" 1
+PUSH_STR "/data/in/notes.txt"
+CAP_CALL "io.file.read:/data/in" 1
+; whitespace -> single spaces, then split
+PUSH_STR "\n"
+PUSH_STR " "
+STR_REPLACE
+PUSH_STR "\t"
+PUSH_STR " "
+STR_REPLACE
+PUSH_STR "\r"
+PUSH_STR " "
+STR_REPLACE
+PUSH_STR " "
+STR_SPLIT
+STORE 0
+PUSH 0
+STORE 1
+PUSH 0
+STORE 2
+; for i in 0..len(parts): if parts[i] != "": count += 1
+loop:
+LOAD 1
+LOAD 0
+ARR_LEN
+LT
+JZ done
+LOAD 0
+LOAD 1
+ARR_GET
+PUSH_STR ""
+NE
+JZ next
+LOAD 2
+PUSH 1
+ADD
+STORE 2
+next:
+LOAD 1
+PUSH 1
+ADD
+STORE 1
+JMP loop
+done:
+PUSH_STR "words: "
+LOAD 2
+CAP_CALL "io.print" 2
+HALT

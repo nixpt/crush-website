@@ -1,0 +1,18 @@
+; passwd: holds a read grant on /data/in and tries to use it on /etc/passwd.
+; Requests only io.file.read:/data/in. Even with that granted, and even
+; though /etc/passwd exists in this filesystem, the read handler refuses the
+; path: it is outside the granted subtree. The notes line prints first.
+PUSH_STR "/data/in/notes.txt"
+CAP_CALL "io.file.read:/data/in" 1
+STORE 0
+PUSH_STR "notes ok ("
+LOAD 0
+CAP_CALL "str.len" 1
+PUSH_STR " bytes)"
+CAP_CALL "io.print" 3
+PUSH_STR "now trying /etc/passwd through the /data/in grant"
+CAP_CALL "io.print" 1
+PUSH_STR "/etc/passwd"
+CAP_CALL "io.file.read:/data/in" 1
+CAP_CALL "io.print" 1
+HALT

@@ -1,0 +1,4 @@
+{
+  "id": "passwd",
+  "capabilities": ["io.file.read:/data/in"]
+}

@@ -168,3 +168,36 @@ footer .build { color: var(--text-muted); font-size: 0.85rem; }
 }
 .player[hidden] { display: none; }
 .hint a { color: #c4b5fd; }
+
+/* ── Programs / Capsules tabs ─────────────────────────────────────────── */
+.mode-tabs { display: flex; gap: 0.25rem; justify-self: start; border: 1px solid var(--border-card); border-radius: 10px; padding: 0.2rem; }
+.mode-tabs a { color: var(--text-muted); text-decoration: none; font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 8px; }
+.mode-tabs a[aria-current="page"] { color: var(--text-main); background: rgba(255, 255, 255, 0.08); }
+.mode-tabs a:hover { color: var(--text-main); }
+
+/* ── Capsules ─────────────────────────────────────────────────────────── */
+.cap-body { padding: 0.9rem 1rem 1rem; display: grid; gap: 0.75rem; min-width: 0; }
+.cap-h { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0.25rem 0 0; }
+.cap-h .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.hint.plain { border: 0; padding: 0; }
+.grants { display: grid; gap: 0.5rem; }
+.grant { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.55rem 0.7rem; border: 1px solid var(--border-card); border-radius: 10px; background: rgba(0, 0, 0, 0.2); cursor: pointer; }
+.grant input { margin-top: 0.3rem; accent-color: var(--primary); }
+.grant span { display: grid; gap: 0.15rem; min-width: 0; }
+.grant code { font-family: 'Fira Code', monospace; font-size: 0.8rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.extra { display: grid; gap: 0.35rem; font-size: 0.9rem; color: var(--text-muted); }
+.extra input { font: 0.9rem 'Fira Code', monospace; color: var(--text-main); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-card); border-radius: 8px; padding: 0.45rem 0.6rem; width: 100%; }
+.presets { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.files { display: grid; gap: 0.6rem; }
+.file { display: grid; gap: 0.3rem; min-width: 0; }
+.file label, .file-path { font-family: 'Fira Code', monospace; font-size: 0.8rem; color: var(--text-muted); }
+.file textarea { font: 0.85rem/1.5 'Fira Code', monospace; color: var(--text-main); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-card); border-radius: 8px; padding: 0.5rem 0.6rem; resize: vertical; width: 100%; }
+.source summary { cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
+.source pre { margin: 0.5rem 0 0; max-height: 18rem; overflow: auto; font: 0.8rem/1.5 'Fira Code', monospace; color: var(--text-muted); background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 0.75rem; }
+.output-pane #out { min-height: 8rem; flex: 0 0 auto; }
+.after { padding: 0.75rem 1rem 1rem; display: grid; gap: 0.5rem; border-top: 1px solid var(--border-card); }
+.after-file pre { margin: 0; font: 0.85rem/1.5 'Fira Code', monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-muted); background: rgba(0, 0, 0, 0.25); border-radius: 8px; padding: 0.5rem 0.6rem; }
+.after-file.changed pre { color: #d6f5e3; border: 1px solid rgba(74, 222, 128, 0.35); }
+.verdict.allowed { border-color: rgba(74, 222, 128, 0.45); background: rgba(74, 222, 128, 0.07); }
+.verdict.allowed strong { color: #bbf7d0; }
+.after[hidden] { display: none; }

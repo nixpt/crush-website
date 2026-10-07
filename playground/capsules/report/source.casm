@@ -1,0 +1,36 @@
+; report: read /data/in/notes.txt, write a summary to /data/out/report.txt.
+; Requests io.file.read:/data/in and io.file.write:/data/out. Grant only the
+; read and the report write is refused (no handler for the write cap) after
+; the "read N bytes" line has already printed.
+PUSH_STR "/data/in/notes.txt"
+CAP_CALL "io.file.read:/data/in" 1
+STORE 0
+LOAD 0
+CAP_CALL "str.len" 1
+STORE 1
+LOAD 0
+PUSH_STR "\n"
+STR_SPLIT
+ARR_LEN
+PUSH 1
+SUB
+STORE 2
+PUSH_STR "read "
+LOAD 1
+PUSH_STR " bytes"
+CAP_CALL "io.print" 3
+; report = "bytes: <n>\nlines: <m>\n"
+PUSH_STR "bytes: "
+LOAD 1
+PUSH_STR "\nlines: "
+LOAD 2
+PUSH_STR "\n"
+CAP_CALL "str.concat" 5
+STORE 3
+PUSH_STR "/data/out/report.txt"
+LOAD 3
+CAP_CALL "io.file.write:/data/out" 2
+POP
+PUSH_STR "wrote /data/out/report.txt"
+CAP_CALL "io.print" 1
+HALT

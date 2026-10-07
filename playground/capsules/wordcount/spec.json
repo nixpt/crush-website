@@ -1,0 +1,4 @@
+{
+  "id": "wordcount",
+  "capabilities": ["io.file.read:/data/in"]
+}
