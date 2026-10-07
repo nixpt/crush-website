@@ -132,7 +132,7 @@ print(text)
     {
         id: 'polyglot',
         name: 'Polyglot gate',
-        blurb: 'Natively, a granted @python block runs on the host. Here nothing grants it, so the block is refused before anything runs.',
+        blurb: 'A @python block. Polyglot blocks only run when the host grants them, and this page grants nothing, so the VM refuses before anything runs.',
         source: `@python {
     print("hello from Python")
 }
@@ -156,6 +156,7 @@ const TIMEOUT_MS = 8000;
 const $ = (id) => document.getElementById(id);
 const src = $('src'), out = $('out'), stats = $('stats'), runBtn = $('run');
 const picker = $('example'), blurb = $('blurb'), shareBtn = $('share');
+const verdict = $('verdict'), verdictTitle = $('verdict-title'), verdictBody = $('verdict-body');
 
 let worker, ready = false, pending = null, nextId = 1, timer = null;
 
@@ -183,12 +184,57 @@ function startWorker() {
     };
 }
 
+// Refusals are the capability model working, so they're shown as outcomes,
+// not crashes. Anything unrecognised is shown as a plain error.
+function classify(error) {
+    let m = error.match(/@(\w+) requires the 'polyglot\.\w+' capability/);
+    if (m) {
+        return {
+            kind: 'refused',
+            title: `Refused: the @${m[1]} block was not granted`,
+            body: 'Crush never runs a polyglot block unless whoever runs the program grants it. ' +
+                'Natively that grant is the --polyglot flag. This page grants nothing, and a browser ' +
+                'has no host process to run Python, JavaScript or Bash in anyway, so polyglot blocks ' +
+                'are always refused here. Running @javascript in the browser itself is planned.',
+        };
+    }
+    m = error.match(/unknown capability: ([\w.]+)/);
+    if (m) {
+        return {
+            kind: 'refused',
+            title: `Refused: capability ${m[1]} was not granted`,
+            body: 'Capabilities are granted by whoever runs the program, not by the program itself. ' +
+                'This page grants only print, so the call is refused before it can do anything.',
+        };
+    }
+    if (/instruction quota exceeded/.test(error)) {
+        return {
+            kind: 'stopped',
+            title: 'Stopped: instruction quota reached',
+            body: 'Every run is capped at one million VM instructions, so a runaway loop ends cleanly instead of hanging the tab.',
+        };
+    }
+    return null;
+}
+
 function show(r) {
     const ms = r.ms < 1 ? '<1' : Math.round(r.ms);
+    verdict.hidden = true;
     if (r.ok) {
         out.className = '';
         out.textContent = r.output.length ? r.output : '(no output)';
         stats.textContent = `ok · ${r.steps.toLocaleString()} steps · ${ms} ms`;
+        return;
+    }
+    const c = classify(r.error);
+    if (c) {
+        verdict.className = 'verdict ' + c.kind;
+        verdictTitle.textContent = c.title;
+        verdictBody.textContent = c.body;
+        verdict.hidden = false;
+        out.className = 'raw';
+        out.textContent = r.error;
+        stats.textContent = `${c.kind} · ${ms} ms`;
     } else {
         out.className = 'err';
         out.textContent = r.error;
@@ -205,6 +251,7 @@ function run() {
     timer = setTimeout(() => {
         worker.terminate();
         pending = null;
+        verdict.hidden = true;
         out.className = 'err';
         out.textContent = `Stopped after ${TIMEOUT_MS / 1000} s of wall-clock time. The runtime has been restarted.`;
         stats.textContent = 'timed out';
@@ -213,6 +260,7 @@ function run() {
 }
 
 function load(ex) {
+    verdict.hidden = true;
     src.value = ex.source;
     blurb.textContent = ex.blurb;
     picker.value = ex.id;

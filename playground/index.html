@@ -32,7 +32,7 @@
         <header class="pg-head">
             <span class="badge">ALPHA · runs entirely in your browser</span>
             <h1>Try <span class="gradient-text">Crush</span></h1>
-            <p>This is the real Crush compiler and VM, compiled to WebAssembly. Nothing is sent to a server. Programs here hold no capabilities beyond printing: no files, no network, no polyglot blocks. Asking for one is refused, which is the point of the language.</p>
+            <p>This is the real Crush compiler and VM, compiled to WebAssembly. Nothing is sent to a server. Programs here hold no capabilities beyond printing: no files, no network, no polyglot blocks. Asking for one is refused, and the page shows you why. That refusal is the point of the language.</p>
         </header>
 
         <section class="pg-grid">
@@ -52,6 +52,10 @@
                     <span class="pane-title">Output</span>
                     <span class="spacer"></span>
                     <span id="stats" class="stats" aria-live="polite">loading runtime…</span>
+                </div>
+                <div id="verdict" class="verdict" hidden>
+                    <strong id="verdict-title"></strong>
+                    <p id="verdict-body"></p>
                 </div>
                 <pre id="out" aria-live="polite"></pre>
             </div>
