@@ -75,6 +75,12 @@
                     <button id="full" class="tool" type="button">Full output</button>
                 </div>
                 <pre id="out" aria-live="polite"></pre>
+                <div id="input-row" class="input-row" hidden>
+                    <label for="stdin-line" class="pane-title">Input</label>
+                    <input id="stdin-line" type="text" spellcheck="false" autocomplete="off" placeholder="type a line, press Enter">
+                    <button id="send" class="tool" type="button">Send</button>
+                    <button id="eof" class="tool" type="button" title="Send end of input (io.read returns an empty string)">End input</button>
+                </div>
             </div>
         </section>
 
@@ -85,7 +91,7 @@
             </div>
             <div class="note-card">
                 <h3>What doesn't, yet</h3>
-                <p>Polyglot blocks (<code>@python</code>, <code>@javascript</code>, <code>@bash</code>) need a host process, so the browser refuses them. Capabilities such as <code>fs</code> and <code>net</code> are not granted. Green threads (<code>spawn</code>) don't compile in the browser build yet.</p>
+                <p>Polyglot blocks (<code>@python</code>, <code>@javascript</code>, <code>@bash</code>) need a host process, so the browser refuses them. Capabilities such as <code>fs</code> and <code>net</code> are not granted. Green threads (<code>spawn</code>) don't compile in the browser build yet. Programs that read input with <code>io.read</code> pause and ask you for each line.</p>
             </div>
             <div class="note-card">
                 <h3>Run it natively</h3>
@@ -101,7 +107,7 @@
                 <span>Crush Language</span>
             </div>
             <p>&copy; 2026 The Crush Authors. Dual-licensed under MIT and Apache 2.0.</p>
-            <p class="build" id="build">Runtime: crush-web from crush-ast <code>4e9c388</code></p>
+            <p class="build" id="build">Runtime: crush-web from crush-ast <code>be3ed23</code></p>
         </div>
     </footer>
 

@@ -3,8 +3,9 @@
 Generated files. Do not edit by hand.
 
 - `crush_web_bg.wasm` and `crush_web.js` are the `crush-web` crate from
-  [nixpt/crush-ast](https://github.com/nixpt/crush-ast) at commit `4e9c388`
-  (2026-10-07), built for the browser.
+  [nixpt/crush-ast](https://github.com/nixpt/crush-ast) at commit `be3ed23`
+  (2026-10-07: CRUSH-118 adds `execute_with` and the interactive `Session`),
+  built for the browser. The playground runs every program as a `Session`.
 - Toolchain: `cargo build --release --target wasm32-unknown-unknown` in
   `crates/crush-web`, then `wasm-bindgen 0.2.126 --target web`. The
   wasm-bindgen CLI version must match the `wasm-bindgen` crate version in
