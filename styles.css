@@ -363,3 +363,8 @@ footer {
    viewport and never add to the page's scrollable width. */
 .blob { position: fixed; }
 html { overflow-x: hidden; }
+
+/* Roadmap columns */
+.roadmap-list { margin: 0.6rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.45rem; color: var(--text-muted); text-align: left; }
+.roadmap-list li { line-height: 1.5; }
+.feature-card a, .section-subtitle a { color: #c4b5fd; }
