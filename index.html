@@ -20,6 +20,7 @@
             <ul class="nav-links">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#status">Status</a></li>
+                <li><a href="#roadmap">Roadmap</a></li>
                 <li><a href="#ecosystem">Ecosystem</a></li>
                 <li><a href="playground/">Playground</a></li>
                 <li><a href="https://docs.crushlang.org/" class="btn-primary">Read the Guide</a></li>
@@ -63,7 +64,7 @@
             <div class="feature-card reveal">
                 <div class="card-icon">🌐</div>
                 <h3>Polyglot Embedding</h3>
-                <p>Drop into another language mid-program with <code>@python { }</code> or <code>@javascript { }</code>. Python round-trips real values back into Crush today; JavaScript and Bash execute but don't yet return values.</p>
+                <p>Drop into another language mid-program with <code>@python { }</code>, <code>@javascript { }</code> or <code>@bash { }</code>. Python and JavaScript hand typed values back to Crush; Bash returns its output as text. A block only runs when it's granted.</p>
             </div>
             <div class="feature-card reveal delay-1">
                 <div class="card-icon">🔑</div>
@@ -73,7 +74,7 @@
             <div class="feature-card reveal delay-2">
                 <div class="card-icon">⚙️</div>
                 <h3>CASM, CVM1 &amp; WASM</h3>
-                <p>Crush compiles to CASM bytecode and runs on the CVM1 virtual machine. In the LiteVM stack it plugs into (<code>exo-light</code>), the same capability set also drives a fuel-metered WebAssembly sandbox — CVM1 and WASM capsules side by side, one enforcement model.</p>
+                <p>Crush compiles to CASM bytecode and runs on the CVM1 virtual machine, natively or compiled to WebAssembly in your browser. Packaged as capsules, the same granted capability set is enforced whether a capsule runs natively or in the browser: <a href="playground/capsules.html">try it</a>.</p>
             </div>
         </div>
     </section>
@@ -85,17 +86,56 @@
             <div class="feature-card reveal">
                 <div class="card-icon">✅</div>
                 <h3>Works today</h3>
-                <p>The language, compiler, and VM run real programs: functions, structs, ranges (<code>for i in 0..n</code>), the capability system, and <code>@python</code> blocks with full value marshaling. <code>cargo install</code> gets you <code>crushc</code> / <code>crush-run</code> / <code>crush-repl</code>.</p>
+                <p>The language, compiler and VM run real programs: functions, structs, ranges (<code>for i in 0..n</code>), exceptions, input with <code>io.read</code>, the capability system, and typed <code>@python</code> / <code>@javascript</code> round trips. <code>cargo install crush-lang-sdk</code> gets you <code>crush</code>, <code>crushc</code>, <code>crush-run</code> and <code>crush-repl</code> (0.3.9). Every example in the <a href="https://docs.crushlang.org/">guide</a> that can run in a browser has a Run button.</p>
             </div>
             <div class="feature-card reveal delay-1">
                 <div class="card-icon">🚧</div>
                 <h3>Rough edges</h3>
-                <p>JavaScript and Bash blocks run but can't return values yet. There's no single <code>crush</code> umbrella command. The standard library is small. Multiple execution backends still have corners that disagree — we're building a differential harness to hunt those down.</p>
+                <p>Lambdas don't parse yet, and <code>import</code> doesn't load anything, so code can't be shared across files. The standard library is small and off by default. The execution engines still disagree in places (the browser's step-by-step VM fails some deep call chains), and a differential test harness is on the way. Walkers for languages beyond JavaScript, Python, C and Bash are thin.</p>
             </div>
             <div class="feature-card reveal delay-2">
                 <div class="card-icon">⚠️</div>
                 <h3>Known limitation</h3>
-                <p>A polyglot block currently runs with the host process's full authority — it steps <em>outside</em> the capability sandbox. Don't run untrusted Crush yet. The enforcement machinery already exists (the LiteVM stack gates crush's host capabilities today); routing polyglot spawns through it is the fix, and it's on the roadmap. We'd rather say so than surprise you.</p>
+                <p>A polyglot block only runs when it's granted, but once granted it runs as a normal host process with your full authority: it steps <em>outside</em> the capability sandbox. An opt-in sandbox exists on Linux but isn't on by default yet. Don't run untrusted Crush with <code>--polyglot</code>. Sandboxing granted blocks is first on the roadmap below. We'd rather say so than surprise you.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="roadmap" class="features-section">
+        <h2 class="section-title reveal">What's <span class="gradient-text">next</span></h2>
+        <p class="section-subtitle reveal">Plans, not promises. Each item is tracked in <a href="https://github.com/nixpt/crush-ast">crush-ast</a>; nothing here works until it says so above.</p>
+        <div class="grid-container">
+            <div class="feature-card reveal">
+                <div class="card-icon">🔨</div>
+                <h3>Now</h3>
+                <ul class="roadmap-list">
+                    <li>Sandbox granted polyglot blocks, and grant them per language</li>
+                    <li>Lambdas, working imports, the standard library on by default</li>
+                    <li>File, environment, time and HTTP capabilities, each behind its own grant</li>
+                    <li>Make every engine agree, with differential tests across them</li>
+                    <li><code>crush-pkg</code> on crates.io, with build-and-run in one command</li>
+                </ul>
+            </div>
+            <div class="feature-card reveal delay-1">
+                <div class="card-icon">🧭</div>
+                <h3>Next</h3>
+                <ul class="roadmap-list">
+                    <li>Java and Kotlin walkers; deeper Python, JavaScript and C walkers; <code>crush run file.py</code></li>
+                    <li>Timeouts on every blocking call, instruction budgets, a deterministic mode</li>
+                    <li>CI on macOS, Windows and ARM</li>
+                    <li>Debugger stepping and watchpoints</li>
+                    <li>JavaScript blocks that run inside the browser playground</li>
+                </ul>
+            </div>
+            <div class="feature-card reveal delay-2">
+                <div class="card-icon">🌒</div>
+                <h3>Later</h3>
+                <ul class="roadmap-list">
+                    <li>The notebook running entirely in the browser, with the guide's chapters as notebooks</li>
+                    <li>A WebAssembly walker and WebAssembly compiled ahead of time</li>
+                    <li>JIT optimisations and a precise garbage collector</li>
+                    <li><a href="https://github.com/nixpt/caison">CAISON</a> as first-class Crush data, with its confidence and annotations intact</li>
+                </ul>
             </div>
         </div>
     </section>
@@ -138,11 +178,18 @@
                     <p>The core: compiler frontend, the CVM1 runtime, the CASM assembler, and the language-frontend crates.</p>
                 </div>
             </a>
-            <a href="https://github.com/nixpt/crush-language-guide" class="eco-card reveal delay-1">
+            <a href="https://docs.crushlang.org/" class="eco-card reveal delay-1">
                 <div class="eco-icon">📚</div>
                 <div class="eco-content">
                     <h3>Crush Language Guide</h3>
-                    <p>The comprehensive technical manual, CAST/CASM specs, and polyglot guides.</p>
+                    <p>The language, the capability model, CAST and CASM. Every example that can run in a browser has Run and Edit buttons.</p>
+                </div>
+            </a>
+            <a href="https://github.com/nixpt/crush-notebook" class="eco-card reveal">
+                <div class="eco-icon">📓</div>
+                <div class="eco-content">
+                    <h3>crush-notebook</h3>
+                    <p>Notebooks for Crush: a <code>.crush-nb</code> document format, an MCP kernel that runs cells with shared variables, and an HTML renderer.</p>
                 </div>
             </a>
             <a href="https://github.com/nixpt/awesome-crush" class="eco-card reveal delay-2">
