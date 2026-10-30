@@ -1,11 +1,12 @@
 // Try Crush: editor + runner. Every example below was run through this exact
-// WebAssembly build before it was listed here.
+// WebAssembly build (play/pkg) before it was listed here, with and without the
+// grants it asks for.
 
 const EXAMPLES = [
     {
         id: 'hello',
         name: 'Hello',
-        blurb: 'Strings, numbers and printing. `print` is the one capability this page grants.',
+        blurb: 'Strings, numbers and printing. A run gets print and the standard library; anything else needs a grant.',
         source: `print("Hello from Crush, running in your browser")
 
 let name = "Crush"
@@ -95,6 +96,28 @@ print("squared distance: " + dist2(p, q))
 `,
     },
     {
+        id: 'closures',
+        name: 'Closures',
+        blurb: 'Lambdas capture the variables around them: a counter that keeps its own state, and a function built from a value.',
+        source: `fn make_counter() {
+    let count = 0
+    return || {
+        count = count + 1
+        return count
+    }
+}
+
+let next = make_counter()
+next()
+next()
+print("counter: " + next())
+
+let rate = 3
+let triple = |x| x * rate
+print("triple(14) = " + triple(14))
+`,
+    },
+    {
         id: 'errors',
         name: 'Exceptions',
         blurb: 'throw and try/catch. Any value can be thrown, including maps.',
@@ -123,18 +146,55 @@ try {
     {
         id: 'caps',
         name: 'Capabilities',
-        blurb: 'This program asks to read a file. The page never granted fs, so the VM refuses. There is no ambient authority to fall back on.',
-        source: `// fs.read is a capability, not a builtin. Nobody granted it.
-let text = fs.read("/etc/hostname")
-print(text)
+        blurb: 'This program writes and reads a file. Nothing granted fs, so the VM refuses before running a line: there is no ambient authority to fall back on. Grant fs and it runs in an empty in-memory directory of its own, which it still cannot leave.',
+        source: `// fs is a capability, not a builtin. Run this without the grant and it is
+// refused before anything happens. Grant fs and the run gets an empty
+// in-memory directory of its own: nothing of your machine.
+fs.write("notes.txt", "written by this run")
+print(fs.read("notes.txt"))
+
+// Even with fs granted, the run cannot leave its directory.
+print(fs.read("/etc/hostname"))
+`,
+    },
+    {
+        id: 'javascript',
+        name: '@javascript',
+        blurb: 'A @javascript block: Crush variables go in, the names after -> come out as typed values. It runs only when the run grants @javascript, in a sandbox with no network and no access to this page.',
+        source: `// Crush variables go in; the names after -> come out, as JSON.
+let n = 5
+let tags = ["crush", "wasm"]
+@javascript -> out {
+const out = { doubled: n * 2, joined: tags.join("+"), count: tags.length }
+}
+print(out.doubled)
+print(out.joined)
+print(out.count)
+`,
+    },
+    {
+        id: 'python',
+        name: '@python',
+        blurb: 'A @python block, run by real CPython compiled to WebAssembly (Pyodide). Granting @python downloads Python the first time (about 13 MB, checked against pinned hashes).',
+        source: `// Real CPython runs this block. Several values come out at once.
+let xs = [2, 4, 4, 4, 5, 5, 7, 9]
+@python -> (mean, spread, version) {
+import sys
+mean = sum(xs) / len(xs)
+spread = max(xs) - min(xs)
+version = sys.version.split()[0]
+}
+print("Python " + version)
+print("mean: " + mean)
+print("spread: " + spread)
 `,
     },
     {
         id: 'polyglot',
         name: 'Polyglot gate',
-        blurb: 'A @python block. Polyglot blocks only run when the host grants them, and this page grants nothing, so the VM refuses before anything runs.',
-        source: `@python {
-    print("hello from Python")
+        blurb: 'A @bash block. A browser has no shell to give it, so this grant does not exist here: the VM refuses before anything runs. Natively it needs crush run --polyglot.',
+        source: `@bash {
+echo "hello from bash"
 }
 
 print("This line never runs")
@@ -215,66 +275,206 @@ const $ = (id) => document.getElementById(id);
 const src = $('src'), out = $('out'), stats = $('stats'), runBtn = $('run');
 const picker = $('example'), blurb = $('blurb'), shareBtn = $('share');
 const verdict = $('verdict'), verdictTitle = $('verdict-title'), verdictBody = $('verdict-body');
+const verdictGrant = $('verdict-grant');
 const player = $('player'), playBtn = $('play'), restartBtn = $('restart'), frameNo = $('frame-no');
 const speedSel = $('speed'), fullBtn = $('full');
 const inputRow = $('input-row'), inputBox = $('stdin-line'), sendBtn = $('send'), eofBtn = $('eof');
+const grantBoxes = Array.from(document.querySelectorAll('#run-grants input[type=checkbox]'));
 
-let worker, ready = false, pending = null, nextId = 1, timer = null;
+// ── Grants: what this run may use beyond print and the standard library ────
+const GRANT_LABEL = {
+    'polyglot.javascript': '@javascript', 'polyglot.python': '@python',
+    fs: 'fs', time: 'time', env: 'env',
+};
+// A refusal names the crush-run flag that would grant each missing capability.
+const FLAG_GRANT = { '--fs': 'fs', '--time': 'time', '--env': 'env' };
+
+function grants() {
+    return grantBoxes.filter((b) => b.checked).map((b) => b.value);
+}
+function setGrants(list) {
+    for (const b of grantBoxes) b.checked = list.includes(b.value);
+}
+
+// ── Runtime: crush-web in a worker, inside a sandboxed iframe ──────────────
+// A granted @javascript block runs in the worker itself (play/guest-js.js), and
+// any program can arrive in a share link, so the worker gets nothing of this
+// page: the iframe has an opaque origin (no cookies, storage or same-origin
+// requests) and a CSP that allows no network at all. The page fetches what the
+// worker needs and hands it over with a MessagePort; the iframe only starts
+// the worker. play/worker.js documents the messages.
+const FRAME_CSP = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; worker-src blob:";
+const FRAME = `<!doctype html><meta http-equiv="Content-Security-Policy" content="${FRAME_CSP}"><script>
+onmessage = (e) => {
+    onmessage = null;
+    const w = new Worker(URL.createObjectURL(new Blob([e.data.worker], { type: 'text/javascript' })));
+    w.onerror = (err) => e.data.port.postMessage({ loadError: err.message || 'the worker failed to start' });
+    w.postMessage({ glue: e.data.glue, wasm: e.data.wasm, port: e.data.port }, [e.data.port, e.data.wasm]);
+};
+<\/script>`;
+
+let frame = null, port = null, ready = false, assets = null;
+let runId = 0, waiting = false, timer = null;
+
+function fetchAssets() {
+    const get = (rel, how) => fetch(new URL(rel, import.meta.url)).then((r) => {
+        if (!r.ok) throw new Error(`${rel}: HTTP ${r.status}`);
+        return r[how]();
+    });
+    return Promise.all([get('play/node-inspect.js', 'text'), get('play/guest-js.js', 'text'), get('play/guest-py.js', 'text'),
+        get('play/worker.js', 'text'), get('play/pkg/crush_web.js', 'text'), get('play/pkg/crush_web_bg.wasm', 'arrayBuffer')])
+        .then(([inspect, guestJs, guestPy, work, glue, wasm]) =>
+            ({ worker: [inspect, guestJs, guestPy, work].join('\n'), glue, wasm }));
+}
 
 function startWorker() {
     ready = false;
-    worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-    worker.onmessage = ({ data }) => {
+    pythonInWorker = false;
+    runBtn.disabled = true;
+    frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-scripts');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.tabIndex = -1;
+    frame.hidden = true;
+    frame.srcdoc = FRAME;
+    const channel = new MessageChannel();
+    port = channel.port1;
+    port.onmessage = onMessage;
+    if (!assets) assets = fetchAssets().catch((e) => { assets = null; throw e; });
+    const loaded = new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
+    document.body.append(frame);
+    const mine = frame;
+    Promise.all([assets, loaded]).then(([a]) => {
+        if (frame !== mine) return;
+        const wasm = a.wasm.slice(0);
+        frame.contentWindow.postMessage({ worker: a.worker, glue: a.glue, wasm, port: channel.port2 }, '*', [channel.port2, wasm]);
+    }).catch(loadFailed);
+}
+
+function stopWorker() {
+    if (port) port.close();
+    if (frame) frame.remove();
+    port = frame = null;
+    ready = false;
+}
+
+function loadFailed(e) {
+    stats.textContent = 'runtime failed to load';
+    out.className = 'err';
+    out.textContent = 'Could not start the Crush runtime: ' + ((e && e.message) || 'unknown error') +
+        '\nThis page needs a browser with WebAssembly and module workers (recent Chrome, Firefox, Safari or Edge).';
+}
+
+function onMessage({ data }) {
+    if (data.id === undefined) {
         if (data.ready) {
             ready = true;
             stats.textContent = 'ready';
             runBtn.disabled = false;
-            return;
+        } else if (data.loadError) {
+            loadFailed(new Error(data.loadError));
         }
-        if (!pending || data.id !== pending) return;
-        clearTimeout(timer);
-        pending = null;
-        runBtn.disabled = false;
-        show(data);
-    };
-    worker.onerror = (e) => {
-        stats.textContent = 'runtime failed to load';
-        out.className = 'err';
-        out.textContent = 'Could not start the Crush runtime: ' + (e.message || 'unknown error') +
-            '\nThis page needs a browser with WebAssembly and module workers (recent Chrome, Firefox, Safari or Edge).';
-    };
+        return;
+    }
+    if (data.id === 'python') {
+        if (pythonDone) pythonDone(data);
+        return;
+    }
+    if (!waiting || data.id !== runId) return;
+    clearTimeout(timer);
+    waiting = false;
+    runBtn.disabled = false;
+    if (data.fatal) {          // a wasm trap leaves the instance unusable
+        stopWorker();
+        startWorker();
+    }
+    show(data);
+}
+
+// ── Python: Pyodide, fetched on the first run that grants @python ──────────
+// The release pinned in play/pyodide.json, from its CDN; each file must match
+// its pinned sha256 before it is used. The bytes are kept for the page, so a
+// restarted worker loads Python again without downloading it again.
+let pythonFiles = null, pythonInWorker = false, pythonDone = null;
+
+async function sha256(buf) {
+    const d = new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+    return Array.from(d, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function fetchPython() {
+    const r = await fetch(new URL('play/pyodide.json', import.meta.url));
+    if (!r.ok) throw new Error(`play/pyodide.json: HTTP ${r.status}`);
+    const pin = await r.json();
+    const files = await Promise.all(Object.entries(pin.files).map(async ([name, want]) => {
+        const f = await fetch(pin.base + name);
+        if (!f.ok) throw new Error(`${pin.base + name}: HTTP ${f.status}`);
+        const buf = await f.arrayBuffer();
+        if (await sha256(buf) !== want.sha256) throw new Error(`${name} does not match its pinned sha256 (play/pyodide.json)`);
+        return [name, buf];
+    }));
+    return Object.fromEntries(files);
+}
+
+async function ensurePython() {
+    if (pythonInWorker) return;
+    if (!pythonFiles) pythonFiles = fetchPython().catch((e) => { pythonFiles = null; throw e; });
+    const files = await pythonFiles;
+    const copies = {}, transfer = [];
+    for (const [name, buf] of Object.entries(files)) { copies[name] = buf.slice(0); transfer.push(copies[name]); }
+    const answer = await new Promise((resolve) => {
+        pythonDone = resolve;
+        port.postMessage({ id: 'python', op: 'python', files: copies }, transfer);
+    });
+    pythonDone = null;
+    if (answer.loadError) throw new Error(answer.loadError);
+    pythonInWorker = true;
 }
 
 // Refusals are the capability model working, so they're shown as outcomes,
 // not crashes. Anything unrecognised is shown as a plain error.
+//
+// crush-web refuses a program that needs capabilities its run was not granted
+// before running any of it, one line per crush-run flag:
+//   this program needs capabilities this run does not grant; nothing was run:
+//     --fs: fs.read, fs.write
+//     --polyglot: polyglot.python
 function classify(error) {
-    if (interactiveRun && /stack underflow|truncated instruction/.test(error)) {
+    const at = error.indexOf('nothing was run:');
+    if (at >= 0) {
+        const can = [], cannot = [];
+        for (const line of error.slice(at).split('\n').slice(1)) {
+            const m = line.match(/^\s*(--[\w-]+):\s*(.+)$/);
+            if (!m) continue;
+            const caps = m[2].split(/,\s*/);
+            if (m[1] === '--polyglot') {
+                for (const c of caps) {
+                    if (GRANT_LABEL[c]) can.push(c); else cannot.push('@' + c.replace(/^polyglot\./, ''));
+                }
+            } else if (FLAG_GRANT[m[1]]) {
+                can.push(FLAG_GRANT[m[1]]);
+            } else {
+                cannot.push(caps.join(', ') + ` (${m[1]})`);
+            }
+        }
+        const named = [...can.map((g) => GRANT_LABEL[g]), ...cannot];
         return {
-            kind: 'stopped',
-            title: 'Known engine bug after the program finished (crush-ast#94)',
-            body: 'Programs that read input run on the browser\'s step-by-step VM, which still disagrees with the native VM ' +
-                'when unwinding some deep call chains, typically after a multi-round game. Everything printed above is ' +
-                'correct, and the native crush-run finishes this program cleanly.',
+            kind: 'refused',
+            title: `Refused: this run was not granted ${named.join(', ')}`,
+            body: 'Capabilities are granted by whoever runs a program, never by the program itself, and the VM checks ' +
+                'them before it runs a single line. ' + (cannot.length
+                ? `A browser cannot grant ${cannot.join(', ')} at all; run it natively with crush run and the matching flag.`
+                : 'Tick the grant below the editor, or use the button, and run it again.'),
+            grant: cannot.length ? null : can,
         };
     }
-    let m = error.match(/@(\w+) requires the 'polyglot\.\w+' capability/);
+    let m = error.match(/unknown capability: (fs\.\w+): (.+)/);
     if (m) {
         return {
             kind: 'refused',
-            title: `Refused: the @${m[1]} block was not granted`,
-            body: 'Crush never runs a polyglot block unless whoever runs the program grants it. ' +
-                'Natively that grant is the --polyglot flag. This page grants nothing, and a browser ' +
-                'has no host process to run Python, JavaScript or Bash in anyway, so polyglot blocks ' +
-                'are always refused here. Running @javascript in the browser itself is planned.',
-        };
-    }
-    m = error.match(/unknown capability: ([\w.]+)/);
-    if (m) {
-        return {
-            kind: 'refused',
-            title: `Refused: capability ${m[1]} was not granted`,
-            body: 'Capabilities are granted by whoever runs the program, not by the program itself. ' +
-                'This page grants only print, so the call is refused before it can do anything.',
+            title: `Refused: ${m[1]} outside the run's directory`,
+            body: 'Granting fs gives this run an empty in-memory directory of its own, not a filesystem. ' +
+                `A path outside it is refused (${m[2]}), whatever the program asks for.`,
         };
     }
     if (/instruction quota exceeded/.test(error)) {
@@ -375,7 +575,7 @@ fullBtn.addEventListener('click', () => {
 // A run is a session: output arrives in pieces (one per call) and is
 // accumulated into `transcript`. 'need_input' means the program is waiting on
 // io.read; the input row sends a line (provide) or end of input (eof).
-let transcript = '', totalMs = 0, interactiveRun = false;
+let transcript = '', totalMs = 0;
 
 function stepsText(r) {
     return (r.steps ?? 0).toLocaleString() + ' steps';
@@ -409,6 +609,11 @@ function finishError(r, ms) {
         verdict.className = 'verdict ' + c.kind;
         verdictTitle.textContent = c.title;
         verdictBody.textContent = c.body;
+        verdictGrant.hidden = !c.grant;
+        if (c.grant) {
+            verdictGrant.textContent = `Grant ${c.grant.map((g) => GRANT_LABEL[g]).join(' + ')} and run`;
+            verdictGrant.onclick = () => { setGrants([...new Set([...grants(), ...c.grant])]); run(); };
+        }
         verdict.hidden = false;
         out.className = 'raw';
         out.textContent = before + error;
@@ -439,43 +644,60 @@ function show(r) {
     else finishError(r, ms);
 }
 
-function send(message) {
-    pending = nextId++;
+// One step of the current run: start, a line of input, or end of input.
+// The wall-clock limit covers the step's running time, not time spent loading
+// Python or waiting for the reader.
+async function send(message) {
+    waiting = true;
     runBtn.disabled = true;
     inputRow.hidden = true;
+    if (message.op === 'start' && message.grants.includes('polyglot.python') && !pythonInWorker) {
+        stats.textContent = 'loading Python…';
+        try {
+            await ensurePython();
+        } catch (e) {
+            waiting = false;
+            runBtn.disabled = false;
+            out.className = 'err';
+            out.textContent = 'Could not load Python: ' + e.message;
+            stats.textContent = 'error';
+            return;
+        }
+    }
     stats.textContent = 'running…';
-    worker.postMessage({ ...message, id: pending });
+    port.postMessage({ ...message, id: runId });
     timer = setTimeout(() => {
-        worker.terminate();
-        pending = null;
+        waiting = false;
+        stopWorker();
         verdict.hidden = true;
         inputRow.hidden = true;
         out.className = 'err';
         out.textContent = (transcript ? transcript + '\n' : '') +
             `Stopped after ${TIMEOUT_MS / 1000} s of wall-clock time. The runtime has been restarted.`;
         stats.textContent = 'timed out';
-        runBtn.disabled = false;
         startWorker();
     }, TIMEOUT_MS);
 }
 
 function run() {
-    if (!ready || pending) return;
+    if (!ready || waiting) return;
     verdict.hidden = true;
+    verdictGrant.hidden = true;
     hidePlayer();
     transcript = '';
     totalMs = 0;
-    interactiveRun = /\bio\.read\b/.test(src.value);
-    send({ type: 'run', source: src.value, maxSteps: 1_000_000 });
+    runId++;
+    send({ op: 'start', source: src.value, grants: grants() });
 }
 
 function provide(line) {
-    if (pending) return;
+    if (waiting) return;
     transcript += line + '\n';   // echo what the player typed, like a terminal
-    send({ type: 'provide', line });
+    send({ op: 'input', line });
 }
 
 function load(ex) {
+    setGrants([]);
     verdict.hidden = true;
     inputRow.hidden = true;
     hidePlayer();
@@ -490,6 +712,7 @@ async function loadGame(g) {
     inputRow.hidden = true;
     hidePlayer();
     picker.value = g.id;
+    setGrants([]);
     blurb.textContent = 'Loading…';
     try {
         if (!gameCache.has(g.id)) {
@@ -515,7 +738,9 @@ async function loadGame(g) {
     }
 }
 
-// Share links carry the program in the URL fragment: #code=<base64url>.
+// Share links carry the program in the URL fragment: #code=<base64url>, plus
+// &grants=fs,time when the run had grants. Opening one ticks them; nothing
+// runs until Run is pressed.
 function encode(text) {
     const bytes = new TextEncoder().encode(text);
     let bin = '';
@@ -528,7 +753,9 @@ function decode(s) {
 }
 
 shareBtn.addEventListener('click', async () => {
-    const url = location.origin + location.pathname + '#code=' + encode(src.value);
+    const g = grants();
+    const url = location.origin + location.pathname + '#code=' + encode(src.value) +
+        (g.length ? '&grants=' + g.join(',') : '');
     history.replaceState(null, '', url);
     try {
         await navigator.clipboard.writeText(url);
@@ -554,7 +781,7 @@ picker.addEventListener('change', () => {
 
 runBtn.addEventListener('click', run);
 sendBtn.addEventListener('click', () => provide(inputBox.value));
-eofBtn.addEventListener('click', () => { if (!pending) { transcript += '^D\n'; send({ type: 'eof' }); } });
+eofBtn.addEventListener('click', () => { if (!waiting) { transcript += '^D\n'; send({ op: 'eof' }); } });
 inputBox.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); provide(inputBox.value); }
 });
@@ -568,14 +795,18 @@ src.addEventListener('keydown', (e) => {
     }
 });
 
-const shared = location.hash.startsWith('#code=') ? location.hash.slice(6) : null;
+const hash = new URLSearchParams(location.hash.slice(1));
+const shared = location.hash.startsWith('#code=') ? hash.get('code') : null;
 const linkedGame = GAMES.find((g) => location.hash === '#' + g.id);
 if (linkedGame) {
     loadGame(linkedGame);
 } else if (shared) {
     try {
         src.value = decode(shared);
-        blurb.textContent = 'A shared program.';
+        const g = (hash.get('grants') || '').split(',').filter((x) => GRANT_LABEL[x]);
+        setGrants(g);
+        blurb.textContent = 'A shared program.' +
+            (g.length ? ` The link ticks ${g.map((x) => GRANT_LABEL[x]).join(', ')}: untick what you don't want to grant.` : '');
         picker.value = '';
     } catch {
         load(EXAMPLES[0]);
@@ -584,5 +815,4 @@ if (linkedGame) {
     load(EXAMPLES[0]);
 }
 
-runBtn.disabled = true;
 startWorker();
