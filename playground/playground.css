@@ -157,6 +157,16 @@ footer .build { color: var(--text-muted); font-size: 0.85rem; }
 .verdict.stopped strong { color: #bfdbfe; }
 #out.raw { color: var(--text-muted); font-size: 0.82rem; }
 .verdict[hidden] { display: none; }
+.verdict .grant-run { justify-self: start; margin-top: 0.3rem; }
+.verdict .grant-run[hidden] { display: none; }
+
+/* ── Grants for a run ─────────────────────────────────────────────────── */
+.run-grants { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.9rem; margin: 0; padding: 0.55rem 0.75rem; border: 0; border-top: 1px solid var(--border-card); }
+.run-grants legend { float: left; margin-right: 0.4rem; padding: 0; }
+.run-grants label { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
+.run-grants input { accent-color: var(--primary); }
+.run-grants code { font-family: 'Fira Code', monospace; font-size: 0.85rem; color: var(--text-main); }
+.run-grants small { font-size: 0.75rem; }
 
 .player {
     display: flex;
