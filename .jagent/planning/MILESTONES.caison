@@ -1,0 +1,56 @@
+@caison { version: "1.0" }
+
+schema: "milestones/1"
+
+project: {
+  name: "crush-website"
+  kind: "docs"
+  lifecycle: "shipped" @verified { at: "2026-11-18", by: "altair" }
+  lifecycle_since: "2026-10-07"
+  home: "zorro"
+  ticket_prefix: "WEB"
+  summary: "crushlang.org (GitHub Pages, built): the site, a public roadmap and the Try Crush playground (grants, capsules, sandboxed @javascript/@python, games); playground on crush-ast 0.8.0 while crush-ast is at 0.11.2"
+  stewards: ["altair"]
+  evidence: {
+    default_branch: "main"
+  }
+}
+
+milestones: [
+  {
+    id: "W1"
+    title: "site live with a browser playground"
+    status: "done" @verified { at: "2026-11-18", by: "altair" }
+    done_at: "2026-10-08"
+    done_when: [
+      { claim: "playground (PR #3)", check: { kind: "merged", pr: "3" } },
+      { claim: "honest status + public roadmap (PR #8)", check: { kind: "merged", pr: "8" } },
+      { claim: "crushlang.org served by GitHub Pages", met: true @verified { at: "2026-11-18", by: "altair" } },
+    ]
+  },
+  {
+    id: "W2"
+    title: "playground on crush-ast 0.8.0 with grants and sandboxed polyglot"
+    status: "done" @verified { at: "2026-11-18", by: "altair" }
+    done_at: "2026-10-30"
+    done_when: [{ claim: "PR #10 merged", check: { kind: "merged", pr: "10" } }]
+  },
+  {
+    id: "W3"
+    title: "content accuracy and the 1.0 story"
+    status: "next" @verified { at: "2026-11-18", by: "altair" }
+    tickets: ["WEB-1"]
+    depends_on: ["crush-ast:FREEZE"]
+    done_when: [
+      { claim: "WEB-1 content audit closed", check: { kind: "tickets", ids: ["WEB-1"], status: "Done" } },
+      "playground rebuilt on the freeze release; status and roadmap pages match RELEASE-1.0-CRITERIA",
+    ]
+  },
+  {
+    id: "W4"
+    title: "game scoreboard"
+    status: "planned" @verified { at: "2026-11-18", by: "altair" }
+    tickets: ["WEB-2"]
+    done_when: [{ claim: "WEB-2 closed", check: { kind: "tickets", ids: ["WEB-2"], status: "Done" } }]
+  },
+]
